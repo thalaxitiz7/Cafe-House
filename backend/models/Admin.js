@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 
 /**
  * Admin Schema
- * Stores admin user information and authentication credentials
+ * Stores admin user information and authentication data
  */
 const adminSchema = new mongoose.Schema(
   {
@@ -19,7 +19,7 @@ const adminSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters'],
-      select: false, // Don't return password by default
+      select: false,
     },
     name: {
       type: String,
@@ -28,44 +28,15 @@ const adminSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'super-admin'],
+      enum: ['admin', 'super_admin', 'moderator'],
       default: 'admin',
     },
+    permissions: [String],
     isActive: {
       type: Boolean,
       default: true,
     },
     lastLogin: Date,
-    permissions: {
-      manageCafes: {
-        type: Boolean,
-        default: true,
-      },
-      manageTags: {
-        type: Boolean,
-        default: true,
-      },
-      manageLocations: {
-        type: Boolean,
-        default: true,
-      },
-      manageOffers: {
-        type: Boolean,
-        default: true,
-      },
-      manageReviews: {
-        type: Boolean,
-        default: true,
-      },
-      manageUsers: {
-        type: Boolean,
-        default: true,
-      },
-      manageAdmins: {
-        type: Boolean,
-        default: false,
-      },
-    },
   },
   {
     timestamps: true,
@@ -75,10 +46,8 @@ const adminSchema = new mongoose.Schema(
 
 /**
  * Hash password before saving
- * Middleware to hash password using bcrypt
  */
 adminSchema.pre('save', async function (next) {
-  // Only hash password if it has been modified
   if (!this.isModified('password')) {
     return next();
   }
@@ -103,7 +72,7 @@ adminSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 /**
- * Update last login timestamp
+ * Update last login
  * @method updateLastLogin
  * @returns {Promise<void>}
  */

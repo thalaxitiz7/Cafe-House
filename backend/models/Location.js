@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 /**
  * Location Schema
- * Stores location tags for cafes in Damak
+ * Stores geographic location data for cafes
  */
 const locationSchema = new mongoose.Schema(
   {
@@ -11,28 +11,34 @@ const locationSchema = new mongoose.Schema(
       required: [true, 'Location name is required'],
       unique: true,
       trim: true,
-      maxlength: [100, 'Location name cannot exceed 100 characters'],
+      index: true,
     },
     description: {
       type: String,
-      trim: true,
-      maxlength: [300, 'Description cannot exceed 300 characters'],
+      maxlength: 500,
     },
     coordinates: {
-      latitude: Number,
-      longitude: Number,
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point',
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        required: true,
+      },
     },
-    cafesCount: {
+    radius: {
+      type: Number,
+      default: 5000, // meters
+    },
+    order: {
       type: Number,
       default: 0,
     },
     isActive: {
       type: Boolean,
       default: true,
-    },
-    order: {
-      type: Number,
-      default: 0,
     },
   },
   {
@@ -42,9 +48,8 @@ const locationSchema = new mongoose.Schema(
 );
 
 /**
- * Create indexes
+ * Geospatial index
  */
-locationSchema.index({ name: 1 });
-locationSchema.index({ order: 1 });
+locationSchema.index({ coordinates: '2dsphere' });
 
 module.exports = mongoose.model('Location', locationSchema);

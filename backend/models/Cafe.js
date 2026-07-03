@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 /**
  * Cafe Schema
- * Stores cafe information including location, amenities, ratings, and images
+ * Stores cafe information, ratings, facilities, and relationships
  */
 const cafeSchema = new mongoose.Schema(
   {
@@ -10,125 +10,75 @@ const cafeSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Cafe name is required'],
       trim: true,
-      maxlength: [100, 'Cafe name cannot exceed 100 characters'],
+      unique: true,
+      index: true,
     },
     description: {
       type: String,
-      trim: true,
-      maxlength: [1000, 'Description cannot exceed 1000 characters'],
+      maxlength: 5000,
     },
     mainImage: {
       url: String,
       publicId: String,
     },
-    gallery: [
+    images: [
       {
         url: String,
         publicId: String,
-        uploadedAt: {
-          type: Date,
-          default: Date.now,
-        },
       },
     ],
     location: {
       address: {
         type: String,
-        required: [true, 'Address is required'],
-        trim: true,
+        required: true,
+      },
+      city: String,
+      state: String,
+      postalCode: String,
+      coordinates: {
+        type: {
+          type: String,
+          enum: ['Point'],
+          default: 'Point',
+        },
+        coordinates: {
+          type: [Number], // [longitude, latitude]
+          required: true,
+        },
       },
       locationTag: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Location',
       },
-      coordinates: {
-        latitude: Number,
-        longitude: Number,
-      },
-      googleMapEmbedUrl: String,
     },
     contact: {
-      phone: {
-        type: String,
-        trim: true,
-      },
-      email: {
-        type: String,
-        lowercase: true,
-        trim: true,
-      },
-      website: {
-        type: String,
-        trim: true,
-      },
-      facebook: {
-        type: String,
-        trim: true,
-      },
-      instagram: {
-        type: String,
-        trim: true,
-      },
+      phone: String,
+      email: String,
+      website: String,
     },
     businessHours: {
-      openTime: String, // HH:MM format
-      closeTime: String, // HH:MM format
-      isOpen24Hours: {
-        type: Boolean,
-        default: false,
-      },
-      closedOn: {
-        type: [String],
-        default: [], // ['Monday', 'Sunday']
-      },
+      monday: { openTime: String, closeTime: String },
+      tuesday: { openTime: String, closeTime: String },
+      wednesday: { openTime: String, closeTime: String },
+      thursday: { openTime: String, closeTime: String },
+      friday: { openTime: String, closeTime: String },
+      saturday: { openTime: String, closeTime: String },
+      sunday: { openTime: String, closeTime: String },
     },
     facilities: {
-      parking: {
-        type: Boolean,
-        default: false,
-      },
-      bikeParkingAvailable: {
-        type: Boolean,
-        default: false,
-      },
-      wifi: {
-        type: Boolean,
-        default: false,
-      },
-      airConditioned: {
-        type: Boolean,
-        default: false,
-      },
-      petFriendly: {
-        type: Boolean,
-        default: false,
-      },
-      smoking: {
-        type: Boolean,
-        default: false,
-      },
-      outdoor: {
-        type: Boolean,
-        default: false,
-      },
-      indoor: {
-        type: Boolean,
-        default: false,
-      },
+      wifi: { type: Boolean, default: false },
+      parking: { type: Boolean, default: false },
+      outdoor: { type: Boolean, default: false },
+      indoor: { type: Boolean, default: true },
+      petFriendly: { type: Boolean, default: false },
+      airConditioned: { type: Boolean, default: true },
+      smoking: { type: Boolean, default: false },
+      bikeParkingAvailable: { type: Boolean, default: false },
     },
     paymentMethods: {
-      cash: {
-        type: Boolean,
-        default: true,
-      },
-      card: {
-        type: Boolean,
-        default: false,
-      },
-      qrPayment: {
-        type: Boolean,
-        default: false,
-      },
+      cash: { type: Boolean, default: true },
+      card: { type: Boolean, default: false },
+      qrPayment: { type: Boolean, default: false },
     },
     tags: [
       {
@@ -136,25 +86,6 @@ const cafeSchema = new mongoose.Schema(
         ref: 'Tag',
       },
     ],
-    menu: {
-      hasMenu: {
-        type: Boolean,
-        default: false,
-      },
-      menuUrl: String,
-      menuPublicId: String,
-    },
-    ranking: {
-      points: {
-        type: Number,
-        default: 0,
-      },
-      stars: {
-        type: Number,
-        enum: [1, 2, 3, 4, 5],
-        default: 3,
-      },
-    },
     rating: {
       average: {
         type: Number,
@@ -165,6 +96,25 @@ const cafeSchema = new mongoose.Schema(
       count: {
         type: Number,
         default: 0,
+      },
+      breakdown: {
+        fiveStars: { type: Number, default: 0 },
+        fourStars: { type: Number, default: 0 },
+        threeStars: { type: Number, default: 0 },
+        twoStars: { type: Number, default: 0 },
+        oneStar: { type: Number, default: 0 },
+      },
+    },
+    ranking: {
+      points: {
+        type: Number,
+        default: 0,
+      },
+      stars: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5,
       },
     },
     reviews: [
@@ -185,27 +135,17 @@ const cafeSchema = new mongoose.Schema(
         ref: 'PromoCode',
       },
     ],
-    savedBy: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
-    savesCount: {
-      type: Number,
-      default: 0,
-    },
     viewCount: {
       type: Number,
       default: 0,
     },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
     isFeatured: {
       type: Boolean,
       default: false,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   {
@@ -215,42 +155,29 @@ const cafeSchema = new mongoose.Schema(
 );
 
 /**
- * Create search index for cafe fields
+ * Geospatial index for location-based queries
  */
-cafeSchema.index({ name: 'text', description: 'text' });
-cafeSchema.index({ 'location.address': 1 });
-cafeSchema.index({ tags: 1 });
+cafeSchema.index({ 'location.coordinates': '2dsphere' });
+cafeSchema.index({ 'rating.average': -1 });
 cafeSchema.index({ 'ranking.points': -1 });
-cafeSchema.index({ rating: -1 });
 
 /**
- * Calculate average rating
- * @method calculateAverageRating
+ * Increment view count
+ * @method incrementViewCount
  * @returns {Promise<void>}
  */
-cafeSchema.methods.calculateAverageRating = async function () {
-  const reviews = await mongoose.model('Review').find({ cafeId: this._id });
-  
-  if (reviews.length === 0) {
-    this.rating.average = 0;
-    this.rating.count = 0;
-  } else {
-    const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
-    this.rating.average = (sum / reviews.length).toFixed(1);
-    this.rating.count = reviews.length;
-  }
-  
+cafeSchema.methods.incrementViewCount = async function () {
+  this.viewCount += 1;
   return await this.save();
 };
 
 /**
- * Update cafe stars based on ranking points
+ * Update star rating based on ranking points
  * @method updateStarRating
  * @returns {Promise<void>}
  */
-cafeSchema.methods.updateStarRating = function () {
+cafeSchema.methods.updateStarRating = async function () {
   const points = this.ranking.points;
-  
   if (points >= 980) {
     this.ranking.stars = 5;
   } else if (points >= 900) {
@@ -262,18 +189,20 @@ cafeSchema.methods.updateStarRating = function () {
   } else {
     this.ranking.stars = 1;
   }
-  
-  return this.save();
+  return await this.save();
 };
 
 /**
- * Increment view count
- * @method incrementViewCount
+ * Add review to cafe
+ * @method addReview
+ * @param {ObjectId} reviewId - Review ID
  * @returns {Promise<void>}
  */
-cafeSchema.methods.incrementViewCount = async function () {
-  this.viewCount += 1;
-  return await this.save();
+cafeSchema.methods.addReview = async function (reviewId) {
+  if (!this.reviews.includes(reviewId)) {
+    this.reviews.push(reviewId);
+    return await this.save();
+  }
 };
 
 module.exports = mongoose.model('Cafe', cafeSchema);

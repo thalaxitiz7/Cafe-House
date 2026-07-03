@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 /**
  * Tag Schema
- * Stores cafe tags for categorization and filtering
+ * Stores cafe tags for categorization
  */
 const tagSchema = new mongoose.Schema(
   {
@@ -10,30 +10,25 @@ const tagSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Tag name is required'],
       unique: true,
-      trim: true,
       lowercase: true,
-      maxlength: [50, 'Tag name cannot exceed 50 characters'],
+      trim: true,
+      index: true,
     },
     displayName: {
       type: String,
-      required: [true, 'Display name is required'],
+      required: true,
       trim: true,
     },
     description: {
       type: String,
-      trim: true,
-      maxlength: [200, 'Description cannot exceed 200 characters'],
+      maxlength: 500,
     },
-    icon: {
-      type: String,
-      trim: true,
-    },
+    icon: String,
     color: {
       type: String,
-      default: '#2E6F40',
-      match: [/^#[0-9A-F]{6}$/i, 'Please provide a valid hex color'],
+      match: /^#[0-9A-F]{6}$/i,
     },
-    cafesCount: {
+    order: {
       type: Number,
       default: 0,
     },
@@ -41,21 +36,11 @@ const tagSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    order: {
-      type: Number,
-      default: 0,
-    },
   },
   {
     timestamps: true,
     collection: 'tags',
   }
 );
-
-/**
- * Create indexes
- */
-tagSchema.index({ name: 1 });
-tagSchema.index({ order: 1 });
 
 module.exports = mongoose.model('Tag', tagSchema);

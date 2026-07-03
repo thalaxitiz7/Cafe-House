@@ -9,7 +9,8 @@ const promoCodeSchema = new mongoose.Schema(
     cafeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Cafe',
-      required: [true, 'Cafe ID is required'],
+      required: true,
+      index: true,
     },
     code: {
       type: String,
@@ -17,12 +18,12 @@ const promoCodeSchema = new mongoose.Schema(
       unique: true,
       uppercase: true,
       trim: true,
-      match: [/^[A-Z0-9]{4,20}$/, 'Promo code must be 4-20 alphanumeric characters'],
+      match: /^[A-Z0-9]{4,20}$/,
+      index: true,
     },
     description: {
       type: String,
-      trim: true,
-      maxlength: [500, 'Description cannot exceed 500 characters'],
+      maxlength: 500,
     },
     discountType: {
       type: String,
@@ -31,102 +32,49 @@ const promoCodeSchema = new mongoose.Schema(
     },
     discountValue: {
       type: Number,
-      required: [true, 'Discount value is required'],
+      required: true,
       min: 0,
     },
     validFrom: {
       type: Date,
-      required: [true, 'Start date is required'],
+      required: true,
     },
     validUntil: {
       type: Date,
-      required: [true, 'End date is required'],
+      required: true,
     },
     minPurchaseAmount: {
       type: Number,
       default: 0,
     },
     maxUses: Number,
-    usageCount: {
+    currentUses: {
       type: Number,
       default: 0,
     },
     usedBy: [
       {
-        userId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'User',
-        },
+        userId: mongoose.Schema.Types.ObjectId,
         usedAt: Date,
       },
     ],
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
   },
   {
     timestamps: true,
-    collection: 'promoCodes',
+    collection: 'promo_codes',
   }
 );
 
 /**
- * Create indexes
- */
-promoCodeSchema.index({ code: 1 });
-promoCodeSchema.index({ cafeId: 1 });
-promoCodeSchema.index({ validFrom: 1, validUntil: 1 });
-
-/**
- * Check if promo code is valid and active
+ * Check if promo code is valid
  * @method isValid
  * @returns {Boolean}
  */
 promoCodeSchema.methods.isValid = function () {
   const now = new Date();
-  return (
-    this.isActive &&
-    now >= this.validFrom &&
-    now <= this.validUntil &&
-    (!this.maxUses || this.usageCount < this.maxUses)
-  );
-};
-
-/**
- * Check if user has already used this code
- * @method hasUserUsed
- * @param {String} userId - User ID
- * @returns {Boolean}
- */
-promoCodeSchema.methods.hasUserUsed = function (userId) {
-  return this.usedBy.some(usage => usage.userId.toString() === userId.toString());
-};
-
-/**
- * Mark code as used by user
- * @method markAsUsedBy
- * @param {String} userId - User ID
- * @returns {Promise<void>}
- */
-promoCodeSchema.methods.markAsUsedBy = async function (userId) {
-  this.usedBy.push({
-    userId,
-    usedAt: new Date(),
-  });
-  this.usageCount += 1;
-  return await this.save();
-};
-
-/**
- * Get days until expiry
- * @method getDaysUntilExpiry
- * @returns {Number}
- */
-promoCodeSchema.methods.getDaysUntilExpiry = function () {
-  const now = new Date();
-  const diff = this.validUntil - now;
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  const isDateValid = now >= this.validFrom && now <= this.validUntil;
+  const isUsageValid = !this.maxUses || this.currentUses < this.maxUses;
+  return isDateValid && isUsageValid;
 };
 
 module.exports = mongoose.model('PromoCode', promoCodeSchema);
