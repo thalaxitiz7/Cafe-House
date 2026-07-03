@@ -1,0 +1,25 @@
+{
+  "name": "cafehub-damak",
+  "version": "1.0.0",
+  "description": "A comprehensive cafe discovery platform for Damak, Nepal",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "cd backend && node server.js",
+    "dev": "cd backend && nodemon server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "cafe",
+    "discovery",
+    "damak",
+    "nepal",
+    "restaurant",
+    "review"
+  ],
+  "author": "CafeHub Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  }
+}
