@@ -1,6 +1,7 @@
 {
   "name": "cafehub-backend",
   "version": "1.0.0",
+    "type": "module",
   "description": "CafeHub Backend API",
   "main": "server.js",
   "scripts": {
