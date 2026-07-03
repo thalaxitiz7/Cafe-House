@@ -1,85 +1,103 @@
 const CONSTANTS = require('../config/constants');
 
 /**
- * Global Error Handler Middleware
- * Catches all errors and returns consistent error responses
+ * Error Handler Middleware
+ * Handles errors and formats responses
  */
-const errorHandler = (err, req, res, next) => {
-  console.error('Error:', err);
 
+/**
+ * Global error handler
+ * @middleware errorHandler
+ * @param {Error} error - Error object
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @param {Function} next - Express next function
+ */
+const errorHandler = (error, req, res, next) => {
   // Mongoose validation error
-  if (err.name === 'ValidationError') {
-    const messages = Object.values(err.errors).map(err => err.message);
+  if (error.name === 'ValidationError') {
+    const messages = Object.values(error.errors).map(err => err.message);
     return res.status(CONSTANTS.STATUS_CODES.BAD_REQUEST).json({
       success: false,
-      message: 'Validation failed',
+      message: 'Validation error',
       errors: messages,
     });
   }
 
   // Mongoose duplicate key error
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyPattern)[0];
+  if (error.code === 11000) {
+    const field = Object.keys(error.keyPattern)[0];
     return res.status(CONSTANTS.STATUS_CODES.CONFLICT).json({
       success: false,
       message: `${field} already exists`,
     });
   }
 
+  // Mongoose cast error
+  if (error.name === 'CastError') {
+    return res.status(CONSTANTS.STATUS_CODES.BAD_REQUEST).json({
+      success: false,
+      message: 'Invalid ID format',
+    });
+  }
+
   // JWT errors
-  if (err.name === 'JsonWebTokenError') {
+  if (error.name === 'JsonWebTokenError') {
     return res.status(CONSTANTS.STATUS_CODES.UNAUTHORIZED).json({
       success: false,
       message: CONSTANTS.MESSAGES.ERROR_INVALID_TOKEN,
     });
   }
 
-  if (err.name === 'TokenExpiredError') {
+  if (error.name === 'TokenExpiredError') {
     return res.status(CONSTANTS.STATUS_CODES.UNAUTHORIZED).json({
       success: false,
       message: 'Token has expired',
     });
   }
 
-  // Multer file upload errors
-  if (err.name === 'MulterError') {
-    if (err.code === 'FILE_TOO_LARGE') {
-      return res.status(CONSTANTS.STATUS_CODES.BAD_REQUEST).json({
-        success: false,
-        message: CONSTANTS.MESSAGES.ERROR_FILE_TOO_LARGE,
-      });
-    }
-  }
-
-  // Custom application errors
-  if (err.statusCode) {
-    return res.status(err.statusCode).json({
-      success: false,
-      message: err.message,
-    });
-  }
-
   // Default error
-  res.status(CONSTANTS.STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+  const statusCode = error.statusCode || CONSTANTS.STATUS_CODES.INTERNAL_SERVER_ERROR;
+  const message = error.message || CONSTANTS.MESSAGES.ERROR_SERVER;
+
+  // Log error in development
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Error:', error);
+  }
+
+  res.status(statusCode).json({
     success: false,
-    message: CONSTANTS.MESSAGES.ERROR_SERVER,
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    message,
+    ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
   });
 };
 
 /**
- * 404 Not Found Handler
- * Should be placed after all routes
+ * 404 Not Found handler
+ * @middleware notFoundHandler
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
  */
 const notFoundHandler = (req, res) => {
   res.status(CONSTANTS.STATUS_CODES.NOT_FOUND).json({
     success: false,
-    message: CONSTANTS.MESSAGES.ERROR_NOT_FOUND,
-    path: req.originalUrl,
+    message: `Route ${req.originalUrl} not found`,
   });
+};
+
+/**
+ * Async error wrapper
+ * Wraps async route handlers to catch errors
+ * @function asyncHandler
+ * @param {Function} fn - Async function
+ * @returns {Function} Wrapped function
+ */
+const asyncHandler = fn => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
 };
 
 module.exports = {
   errorHandler,
   notFoundHandler,
+  asyncHandler,
 };

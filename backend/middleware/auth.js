@@ -3,15 +3,15 @@ const CONSTANTS = require('../config/constants');
 
 /**
  * Authentication Middleware
- * Verifies JWT token and attaches user/admin to request
+ * Verifies JWT tokens and sets user context
  */
 
 /**
- * Verify user JWT token
+ * Verify user token
  * @middleware verifyUserToken
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next middleware function
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @param {Function} next - Express next function
  */
 const verifyUserToken = (req, res, next) => {
   try {
@@ -24,24 +24,45 @@ const verifyUserToken = (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.id;
-    req.userRole = decoded.role;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_change_this_in_production');
+
+    // Check if token is for admin (should not be)
+    if (decoded.isAdmin) {
+      return res.status(CONSTANTS.STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: CONSTANTS.MESSAGES.ERROR_FORBIDDEN,
+      });
+    }
+
+    req.userId = decoded.userId;
+    req.userRole = 'user';
     next();
   } catch (error) {
-    return res.status(CONSTANTS.STATUS_CODES.UNAUTHORIZED).json({
+    if (error.name === 'TokenExpiredError') {
+      return res.status(CONSTANTS.STATUS_CODES.UNAUTHORIZED).json({
+        success: false,
+        message: 'Token has expired',
+      });
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(CONSTANTS.STATUS_CODES.UNAUTHORIZED).json({
+        success: false,
+        message: CONSTANTS.MESSAGES.ERROR_INVALID_TOKEN,
+      });
+    }
+    res.status(CONSTANTS.STATUS_CODES.UNAUTHORIZED).json({
       success: false,
-      message: CONSTANTS.MESSAGES.ERROR_INVALID_TOKEN,
+      message: CONSTANTS.MESSAGES.ERROR_UNAUTHORIZED,
     });
   }
 };
 
 /**
- * Verify admin JWT token
+ * Verify admin token
  * @middleware verifyAdminToken
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next middleware function
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @param {Function} next - Express next function
  */
 const verifyAdminToken = (req, res, next) => {
   try {
@@ -54,8 +75,9 @@ const verifyAdminToken = (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_change_this_in_production');
 
+    // Check if token is for admin
     if (!decoded.isAdmin) {
       return res.status(CONSTANTS.STATUS_CODES.FORBIDDEN).json({
         success: false,
@@ -63,38 +85,62 @@ const verifyAdminToken = (req, res, next) => {
       });
     }
 
-    req.adminId = decoded.id;
-    req.adminRole = decoded.role;
+    req.userId = decoded.userId;
+    req.userRole = 'admin';
     next();
   } catch (error) {
-    return res.status(CONSTANTS.STATUS_CODES.UNAUTHORIZED).json({
+    if (error.name === 'TokenExpiredError') {
+      return res.status(CONSTANTS.STATUS_CODES.UNAUTHORIZED).json({
+        success: false,
+        message: 'Token has expired',
+      });
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(CONSTANTS.STATUS_CODES.UNAUTHORIZED).json({
+        success: false,
+        message: CONSTANTS.MESSAGES.ERROR_INVALID_TOKEN,
+      });
+    }
+    res.status(CONSTANTS.STATUS_CODES.UNAUTHORIZED).json({
       success: false,
-      message: CONSTANTS.MESSAGES.ERROR_INVALID_TOKEN,
+      message: CONSTANTS.MESSAGES.ERROR_UNAUTHORIZED,
     });
   }
 };
 
 /**
- * Optional token verification
- * Doesn't fail if token is missing, but verifies if present
+ * Optional user token verification
+ * Allows requests with or without token
  * @middleware optionalUserToken
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next middleware function
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @param {Function} next - Express next function
  */
 const optionalUserToken = (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
 
-    if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.userId = decoded.id;
-      req.userRole = decoded.role;
+    if (!token) {
+      // Token not provided, continue as guest
+      req.userId = null;
+      req.userRole = 'guest';
+      return next();
     }
 
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_change_this_in_production');
+
+    if (decoded.isAdmin) {
+      req.userRole = 'admin';
+    } else {
+      req.userRole = 'user';
+    }
+
+    req.userId = decoded.userId;
     next();
   } catch (error) {
-    // Silently fail and continue
+    // Invalid token, continue as guest
+    req.userId = null;
+    req.userRole = 'guest';
     next();
   }
 };

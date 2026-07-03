@@ -1,9 +1,17 @@
-const { validationResult, body, param, query } = require('express-validator');
+const { body, validationResult } = require('express-validator');
 const CONSTANTS = require('../config/constants');
 
 /**
- * Validation Error Handler Middleware
- * Checks for validation errors and returns them
+ * Validation Middleware
+ * Handles request validation rules
+ */
+
+/**
+ * Handle validation errors
+ * @middleware handleValidationErrors
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @param {Function} next - Express next function
  */
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
@@ -21,21 +29,24 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 /**
- * Auth Validation Rules
+ * Auth validation rules
+ * @function authValidationRules
+ * @returns {Array} Express validator rules
  */
 const authValidationRules = () => {
   return [
     body('email')
       .isEmail()
       .normalizeEmail()
-      .withMessage(CONSTANTS.MESSAGES.ERROR_INVALID_EMAIL),
+      .withMessage('Please provide a valid email'),
     body('password')
       .isLength({ min: 6 })
-      .withMessage(CONSTANTS.MESSAGES.ERROR_PASSWORD_TOO_SHORT),
+      .withMessage('Password must be at least 6 characters'),
     body('firstName')
+      .optional()
       .trim()
       .notEmpty()
-      .withMessage('First name is required'),
+      .withMessage('First name cannot be empty'),
     body('lastName')
       .optional()
       .trim(),
@@ -43,7 +54,9 @@ const authValidationRules = () => {
 };
 
 /**
- * Cafe Validation Rules
+ * Cafe validation rules
+ * @function cafeValidationRules
+ * @returns {Array} Express validator rules
  */
 const cafeValidationRules = () => {
   return [
@@ -51,40 +64,31 @@ const cafeValidationRules = () => {
       .trim()
       .notEmpty()
       .withMessage('Cafe name is required')
-      .isLength({ max: 100 })
-      .withMessage('Cafe name cannot exceed 100 characters'),
+      .isLength({ min: 2, max: 100 })
+      .withMessage('Name must be between 2 and 100 characters'),
     body('description')
       .optional()
       .trim()
-      .isLength({ max: 1000 })
-      .withMessage('Description cannot exceed 1000 characters'),
+      .isLength({ max: 5000 })
+      .withMessage('Description must not exceed 5000 characters'),
     body('location.address')
+      .optional()
       .trim()
       .notEmpty()
-      .withMessage('Address is required'),
-    body('contact.phone')
-      .optional()
-      .trim(),
-    body('contact.email')
-      .optional()
-      .isEmail()
-      .normalizeEmail(),
-    body('businessHours.openTime')
-      .optional()
-      .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
-      .withMessage('Invalid time format (HH:MM)'),
-    body('businessHours.closeTime')
-      .optional()
-      .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
-      .withMessage('Invalid time format (HH:MM)'),
+      .withMessage('Address cannot be empty'),
   ];
 };
 
 /**
- * Review Validation Rules
+ * Review validation rules
+ * @function reviewValidationRules
+ * @returns {Array} Express validator rules
  */
 const reviewValidationRules = () => {
   return [
+    body('cafeId')
+      .isMongoId()
+      .withMessage('Invalid cafe ID'),
     body('rating')
       .isInt({ min: 1, max: 5 })
       .withMessage('Rating must be between 1 and 5'),
@@ -92,40 +96,44 @@ const reviewValidationRules = () => {
       .optional()
       .trim()
       .isLength({ max: 100 })
-      .withMessage('Title cannot exceed 100 characters'),
+      .withMessage('Title must not exceed 100 characters'),
     body('text')
       .optional()
       .trim()
-      .isLength({ max: 1000 })
-      .withMessage('Review text cannot exceed 1000 characters'),
+      .isLength({ max: 5000 })
+      .withMessage('Review text must not exceed 5000 characters'),
   ];
 };
 
 /**
- * Offer Validation Rules
+ * Offer validation rules
+ * @function offerValidationRules
+ * @returns {Array} Express validator rules
  */
 const offerValidationRules = () => {
   return [
+    body('cafeId')
+      .isMongoId()
+      .withMessage('Invalid cafe ID'),
     body('title')
       .trim()
       .notEmpty()
       .withMessage('Offer title is required')
       .isLength({ max: 100 })
-      .withMessage('Title cannot exceed 100 characters'),
-    body('discountPercentage')
-      .isInt({ min: 0, max: 100 })
-      .withMessage('Discount must be between 0 and 100'),
+      .withMessage('Title must not exceed 100 characters'),
     body('validFrom')
       .isISO8601()
-      .withMessage('Valid start date is required'),
+      .withMessage('Invalid start date'),
     body('validUntil')
       .isISO8601()
-      .withMessage('Valid end date is required'),
+      .withMessage('Invalid end date'),
   ];
 };
 
 /**
- * Tag Validation Rules
+ * Tag validation rules
+ * @function tagValidationRules
+ * @returns {Array} Express validator rules
  */
 const tagValidationRules = () => {
   return [
@@ -133,8 +141,8 @@ const tagValidationRules = () => {
       .trim()
       .notEmpty()
       .withMessage('Tag name is required')
-      .isLength({ max: 50 })
-      .withMessage('Tag name cannot exceed 50 characters'),
+      .isLength({ min: 2, max: 50 })
+      .withMessage('Name must be between 2 and 50 characters'),
     body('displayName')
       .trim()
       .notEmpty()
@@ -142,48 +150,54 @@ const tagValidationRules = () => {
     body('color')
       .optional()
       .matches(/^#[0-9A-F]{6}$/i)
-      .withMessage('Invalid hex color'),
+      .withMessage('Invalid color format'),
   ];
 };
 
 /**
- * Location Validation Rules
+ * Location validation rules
+ * @function locationValidationRules
+ * @returns {Array} Express validator rules
  */
 const locationValidationRules = () => {
   return [
     body('name')
       .trim()
       .notEmpty()
-      .withMessage('Location name is required')
-      .isLength({ max: 100 })
-      .withMessage('Location name cannot exceed 100 characters'),
+      .withMessage('Location name is required'),
+    body('coordinates.coordinates')
+      .isArray({ min: 2, max: 2 })
+      .withMessage('Coordinates must be [longitude, latitude]'),
   ];
 };
 
 /**
- * PromoCode Validation Rules
+ * PromoCode validation rules
+ * @function promoCodeValidationRules
+ * @returns {Array} Express validator rules
  */
 const promoCodeValidationRules = () => {
   return [
+    body('cafeId')
+      .isMongoId()
+      .withMessage('Invalid cafe ID'),
     body('code')
-      .toUpperCase()
       .trim()
-      .notEmpty()
-      .withMessage('Promo code is required')
+      .toUpperCase()
       .matches(/^[A-Z0-9]{4,20}$/)
-      .withMessage('Promo code must be 4-20 alphanumeric characters'),
+      .withMessage('Code must be 4-20 alphanumeric characters'),
     body('discountType')
       .isIn(['percentage', 'amount'])
       .withMessage('Invalid discount type'),
     body('discountValue')
       .isFloat({ min: 0 })
-      .withMessage('Discount value must be a positive number'),
+      .withMessage('Discount value must be positive'),
     body('validFrom')
       .isISO8601()
-      .withMessage('Valid start date is required'),
+      .withMessage('Invalid start date'),
     body('validUntil')
       .isISO8601()
-      .withMessage('Valid end date is required'),
+      .withMessage('Invalid end date'),
   ];
 };
 
